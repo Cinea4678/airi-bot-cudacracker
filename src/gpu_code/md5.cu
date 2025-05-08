@@ -153,6 +153,8 @@ __global__ void md5_compute_batched(md5_ctx *ctxs, uint8_t *pre_processed_msgs, 
 
 // Each thread compares its respective context from ctxs with the target_ctx
 // and writes its index on the grid to match_idx if the contexts are identical
+//
+// Note: Airi bot only need the first 6 bytes of the digest to compare with the target digest.
 __global__ void md5_compare_ctx_batched(md5_ctx *ctxs, md5_ctx *target_ctx, int *match_idx) {
     int idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -160,12 +162,11 @@ __global__ void md5_compare_ctx_batched(md5_ctx *ctxs, md5_ctx *target_ctx, int 
         int start = idx * DIGEST_SIZE;
         md5_ctx ctx = ctxs[idx];
 
+        // Compare first 6 bytes of the digest
         if (ctx.a == target_ctx->a &&
-            ctx.b == target_ctx->b &&
-            ctx.c == target_ctx->c &&
-            ctx.d == target_ctx->d) {
-                *match_idx = idx;
-            }
+            (ctx.b & 0xFFFF) == (target_ctx->b & 0xFFFF)) {
+            *match_idx = idx;
+        }
     }
 }
 
