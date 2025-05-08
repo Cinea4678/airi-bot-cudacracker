@@ -193,10 +193,16 @@ fn main() -> Result<(), io::Error> {
     // }
 
     let prefix = args.test_prefix.as_bytes();
-    let target: [u8; 16] = hex::decode(args.target_digest_prefix)
-        .unwrap()
-        .try_into()
-        .unwrap();
+    let target: [u8; 16] = {
+        let target_raw: [u8; 6] = hex::decode(args.target_digest_prefix)
+            .unwrap()
+            .try_into()
+            .unwrap();
+
+        let mut target: [u8; 16] = [0; 16];
+        (&mut target[0..6]).copy_from_slice(&target_raw);
+        target
+    };
     let mut found: u64 = 0;
 
     let result = unsafe {
