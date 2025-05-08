@@ -453,10 +453,13 @@ int md5_target_with_prefix(const char *h_prefix,
         start_value += BATCH_SIZE; // 下一批
         /* 若需设置搜索上限，可在此处 break */
 
-        if (++counter % 1000 == 0)
+        if (++counter % 10000 == 0)
         {
             uint64_t now = time(NULL);
-            float speed = (last_value - start_value) / float(now - last_time);
+            if(now == last_time)
+                continue; 
+
+            float speed = (start_value - last_value) / float(now - last_time);
             printf("Searching... %llu (%f/s)\n",
                    start_value, speed);
             last_value = start_value;

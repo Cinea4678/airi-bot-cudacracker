@@ -17,4 +17,6 @@ fn main() {
 // - This should be set by `$LIBRARY_PATH`
 println!("cargo:rustc-link-search=native=/usr/local/cuda/lib64");
 println!("cargo:rustc-link-lib=cudart");
+
+println!("cargo:rerun-if-changed=src/gpu_code/md5.cu");
 }
