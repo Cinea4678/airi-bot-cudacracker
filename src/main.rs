@@ -7,7 +7,7 @@ use itertools::Itertools;
 use log::info;
 
 // How many hashes do we compute at a time?
-const BATCH_SIZE: usize = 4096;
+const BATCH_SIZE: usize = 16384;
 
 // Vector of bytes; used to interface w/CUDA code
 #[repr(C)]

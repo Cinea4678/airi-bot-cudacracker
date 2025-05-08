@@ -8,7 +8,7 @@
 #define CHUNK_SIZE (64)
 #define WORD_SIZE (4)
 // How many MD5 hashes do we want to compute concurrently?
-#define BATCH_SIZE (4096)
+#define BATCH_SIZE (16384)
 #define CEIL(x) ((x) == (int)(x) ? (int)(x) : ((x) > 0 ? (int)(x) + 1 : (int)(x)))
 
 typedef unsigned int uint32_t;
@@ -186,7 +186,7 @@ int md5_target_batched(FfiVector *msgs, md5_ctx *h_target_ctx) {
     int *d_match_idx;
     int h_match_idx = -1;
     int total_size = 0;
-    const int threads_per_block = 32;
+    const int threads_per_block = 512;
     const int blocks_per_grid = CEIL((float)BATCH_SIZE / (float)threads_per_block);
 
     // Calculate the total size of the messages after pre-processing
