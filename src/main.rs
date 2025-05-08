@@ -111,17 +111,22 @@ fn crack(args: Arguments) -> Option<String> {
 
     let mut last_point = (current_point, time::Instant::now());
 
+    let mut wordlist = vec![String::new(); BATCH_SIZE * 4];
+
     loop {
         if current_point == usize::MAX {
             return None;
         }
 
-        let next_batch_size = (usize::MAX - current_point).min(BATCH_SIZE * 10);
-        let batch = (current_point..current_point + next_batch_size)
-            .map(|i| format!("{}{}", test_prefix, i))
-            .collect_vec();
+        let next_batch_size = (usize::MAX - current_point).min(BATCH_SIZE * 4);
+        (0..next_batch_size)
+            .for_each(|i| {
+                let idx = current_point + i;
+                wordlist[i] = format!("{}{}", test_prefix, idx);
+            });
+        wordlist.truncate(next_batch_size);
 
-        if let Some(answer) = crack_inner(&dec_digest, batch) {
+        if let Some(answer) = crack_inner(&dec_digest, &wordlist) {
             return Some(answer);
         }
         current_point += next_batch_size;
@@ -135,7 +140,7 @@ fn crack(args: Arguments) -> Option<String> {
 }
 
 // From the wordlist, find a string whose digest matches the input; if such a string does not exist, return None
-fn crack_inner(dec_digest: &[u8], wordlist: Vec<String>) -> Option<String> {
+fn crack_inner(dec_digest: &[u8], wordlist: &[String]) -> Option<String> {
     let target_digest = FfiVector::from(dec_digest.to_owned());
 
     for chunk in wordlist.chunks(BATCH_SIZE) {
