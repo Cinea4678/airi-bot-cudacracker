@@ -2,6 +2,7 @@ use std::{
     env, fs, io::{self, Read}, slice, time, usize
 };
 
+use clap::Parser;
 use itertools::Itertools;
 use log::info;
 
@@ -91,9 +92,9 @@ impl From<FfiVectorBatched> for Vec<Vec<u8>> {
 #[derive(Debug, Clone, clap::Parser)]
 struct Arguments {
     target_digest_prefix: String,
-    #[clap(short = "p", default_value = "saki_")]
+    #[clap(short = 'p', default_value = "saki_")]
     test_prefix: String,
-    #[clap(short = "s", default_value = "0")]
+    #[clap(short = 's', default_value = "0")]
     start_point: usize,
 }
 
@@ -134,7 +135,7 @@ fn crack(args: Arguments) -> Option<String> {
 }
 
 // From the wordlist, find a string whose digest matches the input; if such a string does not exist, return None
-fn crack_inner(dec_digest: &[u8], wordlist: Vec<&str>) -> Option<String> {
+fn crack_inner(dec_digest: &[u8], wordlist: Vec<String>) -> Option<String> {
     let target_digest = FfiVector::from(dec_digest.to_owned());
 
     for chunk in wordlist.chunks(BATCH_SIZE) {
@@ -167,7 +168,7 @@ fn main() -> Result<(), io::Error> {
     let args = Arguments::parse();
 
     if let Some(result) = crack(args) {
-        println!("Hash cracked: md5({result}) = {digest}");
+        println!("Hash cracked: {result}");
     } else {
         println!("Couldn't crack hash");
     }
