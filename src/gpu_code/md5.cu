@@ -311,7 +311,8 @@ write_length_le(uint8_t block[64], uint32_t bitlen)
     reinterpret_cast<uint32_t *>(block + 56)[0] = bitlen;
 }
 
-__device__ __forceinline__ void swap(uint8_t &a, uint8_t &b) {
+__device__ __forceinline__ void swap(uint8_t &a, uint8_t &b)
+{
     uint8_t tmp = a;
     a = b;
     b = tmp;
@@ -322,6 +323,10 @@ md5_kernel_find(uint64_t start_val, size_t prefix_len,
                 int *match_flag, uint64_t *d_found_suffix)
 {
     const uint32_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    // if (tid < 2)
+    // {
+    //     printf("Thread %d\n", tid);
+    // }
     if (tid >= BATCH_SIZE)
         return;
 
@@ -390,6 +395,10 @@ md5_kernel_find(uint64_t start_val, size_t prefix_len,
     a += A0;
     b += B0;
 
+    if(num == 100) {
+        printf("res: a: %08x, b: %08x, d_target_a: %08x, d_target_b: %08x\n", a, b, d_target_a, d_target_b);
+    }
+
     /* ---------- ④ 比对，仅首 6 字节 ---------- */
     if (a == d_target_a &&
         (b & 0xFFFF) == d_target_b)
@@ -415,6 +424,8 @@ int md5_target_with_prefix(const char *h_prefix,
                         (h_target_digest[5] << 8) |
                         (h_target_digest[6] << 16) |
                         (h_target_digest[7] << 24);
+    printf("Target: %08x %08x; prefix: %s\n", target_a, target_b, h_prefix);
+
     cudaMemcpyToSymbol(d_target_a, &target_a, sizeof(uint32_t));
     cudaMemcpyToSymbol(d_target_b, &target_b, sizeof(uint32_t));
 
@@ -456,8 +467,8 @@ int md5_target_with_prefix(const char *h_prefix,
         if (++counter % 10000 == 0)
         {
             uint64_t now = time(NULL);
-            if(now == last_time)
-                continue; 
+            if (now == last_time)
+                continue;
 
             float speed = (start_value - last_value) / float(now - last_time);
             printf("Searching... %llu (%f/s)\n",
