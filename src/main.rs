@@ -1,6 +1,7 @@
 use std::{
-    env, fs, slice,
+    env, fs,
     io::{self, Read},
+    slice,
 };
 
 // How many hashes do we compute at a time?
@@ -25,7 +26,8 @@ pub struct FfiVectorBatched {
 #[link(name = "cudacracker", kind = "static")]
 unsafe extern "C" {
     unsafe fn init();
-    unsafe fn md5_target_batched_wrapper(msgs: &FfiVectorBatched, target_digest: &FfiVector) -> i32;
+    unsafe fn md5_target_batched_wrapper(msgs: &FfiVectorBatched, target_digest: &FfiVector)
+        -> i32;
 }
 
 impl From<Vec<u8>> for FfiVector {
@@ -45,7 +47,7 @@ impl From<FfiVector> for Vec<u8> {
 
         unsafe {
             let data_slice = slice::from_raw_parts(data, n);
-            
+
             data_slice.to_vec()
         }
     }
@@ -64,7 +66,7 @@ impl From<Vec<FfiVector>> for FfiVectorBatched {
 impl From<Vec<Vec<u8>>> for FfiVectorBatched {
     fn from(value: Vec<Vec<u8>>) -> Self {
         let ffi_vecs: Vec<FfiVector> = value.into_iter().map(|x| FfiVector::from(x)).collect();
-        
+
         FfiVectorBatched::from(ffi_vecs)
     }
 }
@@ -76,8 +78,11 @@ impl From<FfiVectorBatched> for Vec<Vec<u8>> {
 
         unsafe {
             let data_slice = slice::from_raw_parts(data, n);
-            
-            data_slice.into_iter().map(|x| slice::from_raw_parts(x.data, x.len).to_vec()).collect()
+
+            data_slice
+                .into_iter()
+                .map(|x| slice::from_raw_parts(x.data, x.len).to_vec())
+                .collect()
         }
     }
 }
@@ -88,7 +93,12 @@ fn crack(digest: &str, wordlist: Vec<&str>) -> Option<String> {
     let target_digest = FfiVector::from(dec_digest);
 
     for chunk in wordlist.chunks(BATCH_SIZE) {
-        let batch = FfiVectorBatched::from(chunk.into_iter().map(|x| x.as_bytes().to_vec()).collect::<Vec<Vec<u8>>>());
+        let batch = FfiVectorBatched::from(
+            chunk
+                .into_iter()
+                .map(|x| x.as_bytes().to_vec())
+                .collect::<Vec<Vec<u8>>>(),
+        );
         unsafe {
             let idx = md5_target_batched_wrapper(&batch, &target_digest);
 
@@ -106,7 +116,7 @@ fn main() -> Result<(), io::Error> {
     unsafe {
         init();
     }
-    
+
     let mut wordlist_file =
         fs::File::open(env::args().nth(1).expect("Expected wordlist file name"))?;
     let mut wordlist_data = String::new();
