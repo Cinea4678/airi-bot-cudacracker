@@ -311,6 +311,12 @@ write_length_le(uint8_t block[64], uint32_t bitlen)
     reinterpret_cast<uint32_t *>(block + 56)[0] = bitlen;
 }
 
+__device__ __forceinline__ void swap(uint8_t &a, uint8_t &b) {
+    uint8_t tmp = a;
+    a = b;
+    b = tmp;
+}
+
 __global__ void
 md5_kernel_find(uint64_t start_val, size_t prefix_len,
                 int *match_flag, uint64_t *d_found_suffix)
