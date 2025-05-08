@@ -395,9 +395,9 @@ md5_kernel_find(uint64_t start_val, size_t prefix_len,
     a += A0;
     b += B0;
 
-    if(num == 100) {
-        printf("res: a: %08x, b: %08x, d_target_a: %08x, d_target_b: %08x\n", a, b, d_target_a, d_target_b);
-    }
+    // if(num == 100) {
+    //     printf("res: a: %08x, b: %08x, d_target_a: %08x, d_target_b: %08x\n", a, b, d_target_a, d_target_b);
+    // }
 
     /* ---------- ④ 比对，仅首 6 字节 ---------- */
     if (a == d_target_a &&
