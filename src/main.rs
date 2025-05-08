@@ -1,8 +1,9 @@
 use std::{
-    env, fs,
-    io::{self, Read},
-    slice,
+    env, fs, io::{self, Read}, slice, time, usize
 };
+
+use itertools::Itertools;
+use log::info;
 
 // How many hashes do we compute at a time?
 const BATCH_SIZE: usize = 4096;
@@ -87,10 +88,54 @@ impl From<FfiVectorBatched> for Vec<Vec<u8>> {
     }
 }
 
+#[derive(Debug, Clone, clap::Parser)]
+struct Arguments {
+    target_digest_prefix: String,
+    #[clap(short = "p", default_value = "saki_")]
+    test_prefix: String,
+    #[clap(short = "s", default_value = "0")]
+    start_point: usize,
+}
+
+// From the arguments, generates digests for the test strings and finds a string whose digest matches the input.
+fn crack(args: Arguments) -> Option<String> {
+    let mut current_point = args.start_point;
+    let target_prefix = args.target_digest_prefix;
+    let test_prefix = args.test_prefix;
+
+    if target_prefix.len() != 12 {
+        panic!("Target digest prefix must be 12 characters long");
+    }
+    let dec_digest = hex::decode(target_prefix).expect("Failed to decode digest");
+
+    let mut last_point = (current_point, time::Instant::now());
+
+    loop {
+        if current_point == usize::MAX {
+            return None;
+        }
+
+        let next_batch_size = (usize::MAX - current_point).min(BATCH_SIZE * 10);
+        let batch = (current_point..current_point + next_batch_size)
+            .map(|i| format!("{}{}", test_prefix, i))
+            .collect_vec();
+
+        if let Some(answer) = crack_inner(&dec_digest, batch) {
+            return Some(answer);
+        }
+        current_point += next_batch_size;
+
+        let current_time = time::Instant::now();
+        let speed = (current_point - last_point.0) as f64 / (current_time - last_point.1).as_secs_f64();
+        info!("Attempts so far: {}, speed: {}/sec", current_point - args.start_point, speed);
+
+        last_point = (current_point, current_time);
+    }
+}
+
 // From the wordlist, find a string whose digest matches the input; if such a string does not exist, return None
-fn crack(digest: &str, wordlist: Vec<&str>) -> Option<String> {
-    let dec_digest = hex::decode(digest).expect("Failed to decode digest");
-    let target_digest = FfiVector::from(dec_digest);
+fn crack_inner(dec_digest: &[u8], wordlist: Vec<&str>) -> Option<String> {
+    let target_digest = FfiVector::from(dec_digest.to_owned());
 
     for chunk in wordlist.chunks(BATCH_SIZE) {
         let batch = FfiVectorBatched::from(
@@ -113,19 +158,15 @@ fn crack(digest: &str, wordlist: Vec<&str>) -> Option<String> {
 }
 
 fn main() -> Result<(), io::Error> {
+    env_logger::init();
+
     unsafe {
         init();
     }
 
-    let mut wordlist_file =
-        fs::File::open(env::args().nth(1).expect("Expected wordlist file name"))?;
-    let mut wordlist_data = String::new();
-    let digest = env::args().nth(2).expect("Expected hash");
+    let args = Arguments::parse();
 
-    wordlist_file.read_to_string(&mut wordlist_data)?;
-    let wordlist = wordlist_data.lines().collect();
-
-    if let Some(result) = crack(&digest, wordlist) {
+    if let Some(result) = crack(args) {
         println!("Hash cracked: md5({result}) = {digest}");
     } else {
         println!("Couldn't crack hash");
