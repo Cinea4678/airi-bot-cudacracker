@@ -1,5 +1,7 @@
 use std::{
-    env, fs, io::{self, Read}, slice, time, usize
+    env, fs,
+    io::{self, Read},
+    slice, time, usize,
 };
 
 use clap::Parser;
@@ -30,6 +32,14 @@ unsafe extern "C" {
     unsafe fn init();
     unsafe fn md5_target_batched_wrapper(msgs: &FfiVectorBatched, target_digest: &FfiVector)
         -> i32;
+
+    fn md5_target_with_prefix_wrapper(
+        prefix: *const u8,
+        prefix_len: usize,
+        start_value: u64,
+        target_digest: *const u8, // 长度必须为 16
+        found_suffix: *mut u64,
+    ) -> i32;
 }
 
 impl From<Vec<u8>> for FfiVector {
@@ -119,11 +129,10 @@ fn crack(args: Arguments) -> Option<String> {
         }
 
         let next_batch_size = (usize::MAX - current_point).min(BATCH_SIZE * 4);
-        (0..next_batch_size)
-            .for_each(|i| {
-                let idx = current_point + i;
-                wordlist[i] = format!("{}{}", test_prefix, idx);
-            });
+        (0..next_batch_size).for_each(|i| {
+            let idx = current_point + i;
+            wordlist[i] = format!("{}{}", test_prefix, idx);
+        });
         wordlist.truncate(next_batch_size);
 
         if let Some(answer) = crack_inner(&dec_digest, &wordlist) {
@@ -132,8 +141,13 @@ fn crack(args: Arguments) -> Option<String> {
         current_point += next_batch_size;
 
         let current_time = time::Instant::now();
-        let speed = (current_point - last_point.0) as f64 / (current_time - last_point.1).as_secs_f64();
-        info!("Attempts so far: {}, speed: {}/sec", current_point - args.start_point, speed);
+        let speed =
+            (current_point - last_point.0) as f64 / (current_time - last_point.1).as_secs_f64();
+        info!(
+            "Attempts so far: {}, speed: {}/sec",
+            current_point - args.start_point,
+            speed
+        );
 
         last_point = (current_point, current_time);
     }
@@ -172,10 +186,37 @@ fn main() -> Result<(), io::Error> {
 
     let args = Arguments::parse();
 
-    if let Some(result) = crack(args) {
-        println!("Hash cracked: {result}");
+    // if let Some(result) = crack(args) {
+    //     println!("Hash cracked: {result}");
+    // } else {
+    //     println!("Couldn't crack hash");
+    // }
+
+    let prefix = args.test_prefix.as_bytes();
+    let target: [u8; 16] = hex::decode(args.target_digest_prefix)
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let mut found: u64 = 0;
+
+    let result = unsafe {
+        md5_target_with_prefix_wrapper(
+            prefix.as_ptr(),
+            prefix.len(),
+            100,
+            target.as_ptr(),
+            &mut found,
+        )
+    };
+
+    if result == 1 {
+        println!(
+            "找到匹配: {}{}",
+            std::str::from_utf8(prefix).unwrap(),
+            found
+        );
     } else {
-        println!("Couldn't crack hash");
+        println!("未找到匹配或出错");
     }
 
     Ok(())
