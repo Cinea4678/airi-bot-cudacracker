@@ -9,7 +9,7 @@
 #define CHUNK_SIZE (64)
 #define WORD_SIZE (4)
 // How many MD5 hashes do we want to compute concurrently?
-#define BATCH_SIZE (16384)
+#define BATCH_SIZE (131072)
 #define CEIL(x) ((x) == (int)(x) ? (int)(x) : ((x) > 0 ? (int)(x) + 1 : (int)(x)))
 
 typedef unsigned int uint32_t;
@@ -462,7 +462,7 @@ int md5_target_with_prefix(const char *h_prefix,
         start_value += BATCH_SIZE; // 下一批
         /* 若需设置搜索上限，可在此处 break */
 
-        if (++counter % 10000 == 0)
+        if (++counter % 5000 == 0)
         {
             uint64_t now = time(NULL);
             if (now == last_time)
@@ -596,11 +596,16 @@ int md5_target_with_prefix_wrapper(const char *prefix,
 
 int main()
 {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
+    printf("Max shared memory per block: %lu\n", prop.sharedMemPerBlock);
+
     uint8_t target[16] = {104, 18, 21, 239, 203, 113};
     uint64_t found;
     int ok = md5_target_with_prefix("saki_", 6, 0, target, &found);
     if (ok)
-        printf("Hit at suffix = %d\n", found);
+        printf("Hit at suffix = %llu\n", found);
     else
         printf("Not found\n");
 }

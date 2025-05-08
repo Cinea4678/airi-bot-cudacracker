@@ -9,7 +9,7 @@
 #define CHUNK_SIZE (64)
 #define WORD_SIZE (4)
 // How many MD5 hashes do we want to compute concurrently?
-#define BATCH_SIZE (16384)
+#define BATCH_SIZE (4194304)
 #define CEIL(x) ((x) == (int)(x) ? (int)(x) : ((x) > 0 ? (int)(x) + 1 : (int)(x)))
 
 typedef unsigned int uint32_t;
@@ -464,7 +464,7 @@ int md5_target_with_prefix(const char *h_prefix,
         start_value += BATCH_SIZE; // 下一批
         /* 若需设置搜索上限，可在此处 break */
 
-        if (++counter % 10000 == 0)
+        if (++counter % 100 == 0)
         {
             uint64_t now = time(NULL);
             if (now == last_time)

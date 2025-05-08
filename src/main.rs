@@ -209,7 +209,7 @@ fn main() -> Result<(), io::Error> {
         md5_target_with_prefix_wrapper(
             prefix.as_ptr(),
             prefix.len(),
-            100,
+            args.start_point as u64,
             target.as_ptr(),
             &mut found,
         )
