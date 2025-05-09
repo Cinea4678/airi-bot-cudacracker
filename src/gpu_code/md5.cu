@@ -8,7 +8,7 @@
 #define DIGEST_SIZE (16)
 #define CHUNK_SIZE (64)
 #define WORD_SIZE (4)
-// How many MD5 hashes do we want to compute concurrently?
+// Batch大小，可以调整来适应不同GPU的性能
 #define BATCH_SIZE (4194304)
 #define CEIL(x) ((x) == (int)(x) ? (int)(x) : ((x) > 0 ? (int)(x) + 1 : (int)(x)))
 
@@ -294,7 +294,12 @@ int md5_target_with_prefix(const char *h_prefix,
                            uint64_t *h_found_suffix)
 {
     /* ---- 一次性把 prefix / target 下到常量内存 ---- */
-    cudaMemcpyToSymbol(d_prefix, h_prefix, prefix_len);
+    cudaError_t err = cudaMemcpyToSymbol(d_prefix, h_prefix, prefix_len);
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "cudaMemcpyToSymbol failed: %s\n", cudaGetErrorString(err));
+        return -1;
+    }
     uint32_t target_a = h_target_digest[0] |
                         (h_target_digest[1] << 8) |
                         (h_target_digest[2] << 16) |
@@ -328,7 +333,13 @@ int md5_target_with_prefix(const char *h_prefix,
 
         md5_kernel_find<<<GRID, TPB>>>(start_value, prefix_len,
                                        d_flag, d_suffix);
-        cudaDeviceSynchronize();
+        cudaError_t syncErr = cudaDeviceSynchronize();
+        if (syncErr != cudaSuccess) {
+            fprintf(stderr, "CUDA同步错误: %s\n", cudaGetErrorString(syncErr));
+            cudaFree(d_flag);
+            cudaFree(d_suffix);
+            return 0;
+        }
 
         cudaMemcpy(&h_flag, d_flag, sizeof(int), cudaMemcpyDeviceToHost);
         if (h_flag >= 0)
@@ -343,6 +354,7 @@ int md5_target_with_prefix(const char *h_prefix,
         start_value += BATCH_SIZE; // 下一批
         /* 若需设置搜索上限，可在此处 break */
 
+        // 建议当BATCH_SIZE小于十万量级时，上调到1000
         if (++counter % 100 == 0)
         {
             uint64_t now = time(NULL);
@@ -400,4 +412,23 @@ extern "C"
 
         return md5_target_with_prefix(prefix, prefix_len, start_value, target_digest, found_suffix);
     }
+}
+
+/**
+ * 如你所见，这里有main函数，用于调试CUDA代码的问题
+ */
+int main()
+{
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    printf("Max threads per block: %d\n", prop.maxThreadsPerBlock);
+    printf("Max shared memory per block: %lu\n", prop.sharedMemPerBlock);
+
+    uint8_t target[16] = {104, 18, 21, 239, 203, 113};  // 681215efcb71
+    uint64_t found;
+    int ok = md5_target_with_prefix("saki_", 6, 0, target, &found);
+    if (ok)
+        printf("Hit at suffix = %llu\n", found);
+    else
+        printf("Not found\n");
 }
