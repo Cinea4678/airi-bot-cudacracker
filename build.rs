@@ -6,6 +6,7 @@ fn main() {
     .flag("-cudart=shared")
     .flag("-gencode")
     .flag("arch=compute_89,code=sm_89")
+    .flag("-DNOMAIN")
     //.file("src/gpu_code/vector_add.cu")
     .file("src/gpu_code/md5.cu")
     .compile("libcudacracker.a");

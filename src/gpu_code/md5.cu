@@ -414,8 +414,11 @@ extern "C"
     }
 }
 
+#ifndef NOMAIN
 /**
  * 如你所见，这里有main函数，用于调试CUDA代码的问题
+ * 
+ * 在Rust中编译时，会带上-DNOMAIN，避免冲突
  */
 int main()
 {
@@ -432,3 +435,4 @@ int main()
     else
         printf("Not found\n");
 }
+#endif
